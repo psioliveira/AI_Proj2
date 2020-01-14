@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace Assets.Scripts.AI.AIs.G06KiwIA
@@ -8,7 +9,7 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
     {
         internal PShape shape;
         internal PColor color;
-        private Random _random;
+        private int _random;
         private int _maxDepth = 1;
 
         public G06KiwIAThinker(int maxDepth)
@@ -31,33 +32,27 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
 
         public FutureMove Think(Board board, CancellationToken cancelationToken)
         {
-            FutureMove? futureMove;
             Play play;
-            int roundPieces;
-            int squarePieces;
 
-            _random = new Random();
-
-            play = Negamax(depth, board, board.Turn, cancelationToken);
+            _random = 1;
+            
+            play = Negamax(_maxDepth, board, board.Turn, cancelationToken);
 
             if (play.Position != null) { return new FutureMove(Convert.ToInt32(play.Position), PShape.Round); }
 
-            else { return new FutureMove(_random.Next(0, board.cols), shape); }
-
-
-            return new FutureMove(_random.Next(0, board.cols), shape);
+            else { return new FutureMove(_random, shape); }
         }
 
 
-        private Play Negamax(int depth, Board board, PColor turn, int alpha = int.MinValue, int beta = int.MaxValue, CancellationToken cancellationToken)
+        private Play Negamax(int depth, Board board, PColor turn, CancellationToken cancellationToken, int alpha = int.MinValue, int beta = int.MaxValue)
         {
             Play selectedMove = new Play(null, int.MinValue);
             PColor nextTurn = (turn == PColor.Red) ? PColor.White : PColor.Red;
 
             if (cancellationToken.IsCancellationRequested) { return new Play(null, 0); }
 
-            if (maxDepth <= 0) {
-                int tempScore;
+            if (_maxDepth <= 0) {
+                int tempScore = default;
 
                 if(board.CheckWinner() != Winner.None)
                 {
@@ -65,20 +60,24 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
 
 
                 }
-                tempScore += board.winCorridors.Count;
+                tempScore += board.winCorridors.Count();
 
                 if(tempScore %2 != 0)
                 {
                     tempScore *= -1;
                 }
-                return tempScore;
-            }
+                selectedMove.Score = tempScore;
 
-            for (int i = board.rows; i > 0; i--)
+
+                return selectedMove;
+            }
+            for (int j = 0; j < board.cols; j++)
             {
-                for (int j = 0; j < board.cols; j++)
+                int column = j;
+                for (int i= board.rows-1 ; i >= 0; i--)
                 {
-                    int column = j;
+                
+                    
                     if (board[i, j] == null)
                     {
                         int roundPieces = board.PieceCount(board.Turn, PShape.Round);
@@ -91,7 +90,7 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
                             board.DoMove(shape, j);
                             if ((board.CheckWinner() == Winner.None))
                             {
-                                move = Negamax(maxDepth, board, nextTurn, -beta, -alpha, cancellationToken);
+                                move = Negamax(depth-1, board, nextTurn, cancellationToken, -beta, -alpha);
                             }
                             board.UndoMove();
                             move.Score = -move.Score;
@@ -120,7 +119,7 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
                             board.DoMove(shape, j);
                             if ((board.CheckWinner() == Winner.None))
                             {
-                                move = Negamax(maxDepth, board, nextTurn, -beta, -alpha, cancellationToken);
+                                move = Negamax(depth - 1, board, nextTurn, cancellationToken, -beta, -alpha);
                             }
                             board.UndoMove();
                             if (move.Score > bestMove.Score)
@@ -142,7 +141,7 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
                     }
 
                     bestMove.Score = alpha;
-                    i--;
+                    j++;
 
                 }
             }
