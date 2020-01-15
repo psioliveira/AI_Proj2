@@ -8,8 +8,7 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
     class G06KiwIAThinker : IThinker
     {
         internal PShape shape;
-        internal PColor color;
-        private int _random;
+        private Random _random;
         private int _maxDepth = 1;
 
         public G06KiwIAThinker(int maxDepth)
@@ -32,15 +31,15 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
 
         public FutureMove Think(Board board, CancellationToken cancelationToken)
         {
+
             Play play;
 
-            _random = 1;
-            
+            _random = new Random();
             play = Negamax(_maxDepth, board, board.Turn, cancelationToken);
 
             if (play.Position != null) { return new FutureMove(Convert.ToInt32(play.Position), PShape.Round); }
 
-            else { return new FutureMove(_random, shape); }
+            else { return new FutureMove(_random.Next(0, board.cols), shape); }
         }
 
 
@@ -51,18 +50,17 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
 
             if (cancellationToken.IsCancellationRequested) { return new Play(null, 0); }
 
-            if (_maxDepth <= 0) {
-                int tempScore = default;
+            if (depth <= 0)
+            {
+                int tempScore = _random.Next(0, 100);
 
-                if(board.CheckWinner() != Winner.None)
+                if (board.CheckWinner() != Winner.None)
                 {
-                    tempScore = 30;
-
-
+                    tempScore = 300;
                 }
-                tempScore += board.winCorridors.Count();
+                tempScore += board.winCorridors.Count() * 10;
 
-                if(tempScore %2 != 0)
+                if (tempScore % 2 != 0)
                 {
                     tempScore *= -1;
                 }
@@ -74,10 +72,9 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
             for (int j = 0; j < board.cols; j++)
             {
                 int column = j;
-                for (int i= board.rows-1 ; i >= 0; i--)
+                for (int i = 0; i < board.rows; i++)
                 {
-                
-                    
+
                     if (board[i, j] == null)
                     {
                         int roundPieces = board.PieceCount(board.Turn, PShape.Round);
@@ -90,14 +87,13 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
                             board.DoMove(shape, j);
                             if ((board.CheckWinner() == Winner.None))
                             {
-                                move = Negamax(depth-1, board, nextTurn, cancellationToken, -beta, -alpha);
+                                move = Negamax(depth - 1, board, nextTurn, cancellationToken, -beta, -alpha);
                             }
                             board.UndoMove();
                             move.Score = -move.Score;
                             if (move.Score > bestMove.Score)
                             {
                                 bestMove = move;
-
                             }
 
                             if (bestMove.Score > alpha)
@@ -108,6 +104,7 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
                             if (bestMove.Score >= beta)
                             {
                                 bestMove.Score = alpha;
+                                bestMove.Position = column;
                                 return bestMove;
                             }
 
@@ -135,14 +132,11 @@ namespace Assets.Scripts.AI.AIs.G06KiwIA
                             if (bestMove.Score >= beta)
                             {
                                 bestMove.Score = alpha;
+                                bestMove.Position = column;
                                 return bestMove;
                             }
                         }
                     }
-
-                    bestMove.Score = alpha;
-                    j++;
-
                 }
             }
             return bestMove;
